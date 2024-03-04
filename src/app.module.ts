@@ -5,10 +5,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from './users/entities/user.entity';
 import { FileEntity } from './files/entities/file.entity';
 import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ envFilePath: '.env', isGlobal: true }),
     UsersModule,
     FilesModule,
     TypeOrmModule.forRoot({
@@ -21,6 +22,7 @@ import { ConfigModule } from '@nestjs/config';
       entities: [UserEntity, FileEntity],
       synchronize: true,
     }),
+    AuthModule,
   ],
   controllers: [],
   providers: [],
