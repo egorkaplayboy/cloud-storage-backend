@@ -1,17 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectEntityManager } from '@nestjs/typeorm';
 import { FileEntity } from '../db/entities/file.entity';
-import { EntityManager } from 'typeorm';
 import { bytesToMegabytes, generateFileName } from './helper';
 import { MapperFile } from './file.mapper';
 import { SpaceEntity } from 'src/db/entities/space.entity';
 import { randomUUID } from 'crypto';
 import { SpaceType } from 'src/dto/space.dto';
+import { BaseService } from 'src/base/base.service';
 
 @Injectable()
-export class FileService {
-  constructor(@InjectEntityManager() private readonly manager: EntityManager) {}
-
+export class FileService extends BaseService {
   async uploadFile(
     file: Express.Multer.File,
     userId: string,
@@ -74,5 +71,26 @@ export class FileService {
 
     const result = await this.manager.query(query, [space_id, user_id]);
     return MapperFile.toBriefInfos(result);
+  }
+
+  async deleteFile(id: string) {
+    const file = await this.manager.findOneBy(FileEntity, { id: id });
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    const space = await this.manager.findOneBy(SpaceEntity, {
+      id: file.space_id,
+    });
+    if (!space) {
+      throw new NotFoundException('Space not found');
+    }
+
+    await this.manager.update(
+      SpaceEntity,
+      { id: space.id },
+      { usedMemory: space.usedMemory - file.size },
+    );
+    return file.id;
   }
 }

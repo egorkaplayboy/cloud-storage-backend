@@ -1,10 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
-  Req,
   Res,
   StreamableFile,
   UploadedFiles,
@@ -15,13 +15,25 @@ import { FileService } from './file.service';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { Readable } from 'stream';
 import { Response } from 'express';
-import { AuthGuard, CustomRequest } from 'src/auth/guard/auth.guard';
+import { AuthGuard } from 'src/auth/guard/auth.guard';
+import { UserInfo } from 'src/decorators/user.decorator';
+import { UserBriefInfo } from 'src/dto/user.dto';
+import {
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { FileBriefInfo } from 'src/dto/file.dto';
 
 @UseGuards(AuthGuard)
 @Controller('file')
+@ApiTags('files')
 export class FileController {
   constructor(private readonly fileService: FileService) {}
 
+  @ApiOperation({ summary: 'Просмотреть файл по id' })
+  @ApiResponse({ type: StreamableFile })
   @Get('/:id')
   async getFile(
     @Res({ passthrough: true }) res: Response,
@@ -38,6 +50,7 @@ export class FileController {
     return new StreamableFile(stream);
   }
 
+  @ApiOperation({ summary: 'Скачать файл по id' })
   @Get('/:id/download')
   async downloadFile(@Res() res: Response, @Param('id') id: string) {
     const file = await this.fileService.getFileById(id);
@@ -51,26 +64,38 @@ export class FileController {
     stream.pipe(res);
   }
 
+  @ApiOperation({ summary: 'Загрузить файлы' })
+  @ApiResponse({ type: FileBriefInfo, isArray: true })
   @Post('/upload-many')
   @UseInterceptors(AnyFilesInterceptor())
+  @ApiConsumes('multipart/form-data')
   async uploadManyFiles(
     @UploadedFiles() files: Array<Express.Multer.File>,
     @Body('space_id') space_id: string,
-    @Req() req: CustomRequest,
+    @UserInfo() user: UserBriefInfo,
   ) {
     const uploadedFiles = await Promise.all(
       files.map((file) => {
-        return this.fileService.uploadFile(file, req.user.id, space_id);
+        return this.fileService.uploadFile(file, user.id, space_id);
       }),
     );
     return uploadedFiles;
   }
 
+  @ApiOperation({ summary: 'Получить файлы по space id' })
+  @ApiResponse({ type: FileBriefInfo, isArray: true })
   @Get('/:id/get-files')
   async getFilesForSpace(
     @Param('id') space_id: string,
-    @Req() req: CustomRequest,
+    @UserInfo() user: UserBriefInfo,
   ) {
-    return await this.fileService.getFilesForSpace(space_id, req.user.id);
+    return await this.fileService.getFilesForSpace(space_id, user.id);
+  }
+
+  @ApiOperation({ summary: 'Удалить файл' })
+  @ApiResponse({ type: String })
+  @Delete(':id/delete')
+  async deleteFile(@Param('file_id') file_id: string) {
+    return await this.fileService.deleteFile(file_id);
   }
 }

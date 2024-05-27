@@ -1,31 +1,27 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { SpaceType } from 'src/dto/space.dto';
 import { SpaceEntity } from 'src/db/entities/space.entity';
-import { Repository } from 'typeorm';
+import { FileEntity } from 'src/db/entities/file.entity';
+import { BaseService } from 'src/base/base.service';
 
 @Injectable()
-export class SpaceService {
-  constructor(
-    @InjectRepository(SpaceEntity)
-    private readonly manager: Repository<SpaceEntity>,
-  ) {}
-  async createTrial(name: string, userId: string) {
-    const space = this.manager.create({
+export class SpaceService extends BaseService {
+  async createTrial(name: string) {
+    const space = this.manager.create(SpaceEntity, {
       id: randomUUID(),
       name,
-      user_id: userId,
+      user_id: this.context.user.id,
     });
     await this.manager.save(space);
     return space;
   }
 
-  async createPaid(name: string, userId: string) {
-    const space = this.manager.create({
+  async createPaid(name: string) {
+    const space = this.manager.create(SpaceEntity, {
       id: randomUUID(),
       name,
-      user_id: userId,
+      user_id: this.context.user.id,
       type: SpaceType.PAID,
       totalMemory: 1024 * 1024,
       maxFileSizeUpload: 10 * 1024,
@@ -35,11 +31,12 @@ export class SpaceService {
   }
 
   async updateToPaid(id: string) {
-    const existsSpace = await this.manager.findOneBy({ id });
+    const existsSpace = await this.manager.findOneBy(SpaceEntity, { id });
     if (!existsSpace) throw new UnprocessableEntityException('Space not found');
     if (existsSpace.type === SpaceType.PAID)
       throw new Error('Space already paid');
     await this.manager.update(
+      SpaceEntity,
       { id },
       {
         type: SpaceType.PAID,
@@ -51,14 +48,21 @@ export class SpaceService {
   }
 
   async deleteSpace(id: string) {
-    const existsSpace = await this.manager.findOneBy({ id });
+    const existsSpace = await this.manager.findOneBy(SpaceEntity, { id });
     if (!existsSpace) throw new UnprocessableEntityException('Space not found');
-    await this.manager.delete({ id });
+    const files = await this.manager.findBy(FileEntity, {
+      space_id: existsSpace.id,
+    });
+    await Promise.all(
+      files.map((file) => this.manager.delete(FileEntity, file.id)),
+    );
+    await this.manager.delete(SpaceEntity, id);
     return { id };
   }
 
-  async getSpacesForUser(user_id: string): Promise<SpaceEntity[]> {
-    const query = `select * from space where user_id = $1`;
-    return await this.manager.query(query, [user_id]);
+  async getSpacesForUser(): Promise<SpaceEntity[]> {
+    return await this.manager.find(SpaceEntity, {
+      where: { user_id: this.context.user.id },
+    });
   }
 }
