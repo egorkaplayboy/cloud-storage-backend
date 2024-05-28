@@ -16,8 +16,6 @@ import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { Readable } from 'stream';
 import { Response } from 'express';
 import { AuthGuard } from 'src/auth/guard/auth.guard';
-import { UserInfo } from 'src/decorators/user.decorator';
-import { UserBriefInfo } from 'src/dto/user.dto';
 import {
   ApiConsumes,
   ApiOperation,
@@ -72,11 +70,10 @@ export class FileController {
   async uploadManyFiles(
     @UploadedFiles() files: Array<Express.Multer.File>,
     @Body('space_id') space_id: string,
-    @UserInfo() user: UserBriefInfo,
   ) {
     const uploadedFiles = await Promise.all(
       files.map((file) => {
-        return this.fileService.uploadFile(file, user.id, space_id);
+        return this.fileService.uploadFile(file, space_id);
       }),
     );
     return uploadedFiles;
@@ -85,11 +82,8 @@ export class FileController {
   @ApiOperation({ summary: 'Получить файлы по space id' })
   @ApiResponse({ type: FileBriefInfo, isArray: true })
   @Get('/:id/get-files')
-  async getFilesForSpace(
-    @Param('id') space_id: string,
-    @UserInfo() user: UserBriefInfo,
-  ) {
-    return await this.fileService.getFilesForSpace(space_id, user.id);
+  async getFilesForSpace(@Param('id') space_id: string) {
+    return await this.fileService.getFilesForSpace(space_id);
   }
 
   @ApiOperation({ summary: 'Удалить файл' })

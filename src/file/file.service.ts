@@ -9,11 +9,7 @@ import { BaseService } from 'src/base/base.service';
 
 @Injectable()
 export class FileService extends BaseService {
-  async uploadFile(
-    file: Express.Multer.File,
-    userId: string,
-    space_id: string,
-  ) {
+  async uploadFile(file: Express.Multer.File, space_id: string) {
     if (!file.size) {
       throw new Error('Error uploading file');
     }
@@ -27,7 +23,7 @@ export class FileService extends BaseService {
       filename: generateFileName(file.originalname),
       mimetype: file.mimetype,
       size: bytesToMegabytes(file.size),
-      user_id: userId,
+      user_id: this.context.user.id,
       space_id,
       id: randomUUID(),
     });
@@ -66,10 +62,11 @@ export class FileService extends BaseService {
     return file;
   }
 
-  async getFilesForSpace(space_id: string, user_id: string) {
-    const query = `select * from files where space_id = $1 and user_id = $2`;
-
-    const result = await this.manager.query(query, [space_id, user_id]);
+  async getFilesForSpace(space_id: string) {
+    const result = await this.manager.findBy(FileEntity, {
+      space_id,
+      user_id: this.context.user.id,
+    });
     return MapperFile.toBriefInfos(result);
   }
 

@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { SpaceModule } from './space/space.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseConfig } from './config';
+import { BaseModule } from './base/base.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { DatabaseConfig } from './config';
       imports: [ConfigModule],
       inject: [ConfigService],
     }),
+    BaseModule,
     FileModule,
     UsersModule,
     AuthModule,

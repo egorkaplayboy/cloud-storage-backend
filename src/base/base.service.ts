@@ -15,6 +15,6 @@ export class BaseService {
     @Inject(REQUEST) private readonly request: CustomRequest,
   ) {
     this.manager = entityManager;
-    this.context = this.request;
+    this.context = { user: this.request.user };
   }
 }
